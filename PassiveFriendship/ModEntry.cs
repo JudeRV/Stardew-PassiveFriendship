@@ -11,34 +11,44 @@ namespace PassiveFriendship
     public class ModEntry : Mod
     {
         private ModConfig Config;
+
         GameLocation gameLocation;
+
         readonly Dictionary<string, string> disposition = Game1.content.Load<Dictionary<string, string>>("Data\\NPCDispositions");
+
+        //Config bools
         int radius;
-        int fourteenHeartPoints = 3749;
-        int tenHeartPoints = 2749;
-        int eightHeartPoints = 2249;
+        int friendshipGainedPerInterval;
         bool notifyInConsole;
+
+        readonly int fourteenHeartPoints = 3749;
+        readonly int tenHeartPoints = 2749;
+        readonly int eightHeartPoints = 2249;
         public override void Entry(IModHelper helper)
         {
+            //Config options being set
             Config = Helper.ReadConfig<ModConfig>();
             radius = Config.FriendshipRadius;
+            friendshipGainedPerInterval = Config.AmountOfFriendshipGainedPerTenMinutes;
             notifyInConsole = Config.NotifyAboutFriendshipInConsole;
 
+            //Event handler
             helper.Events.GameLoop.TimeChanged += OnTimeChanged;
             helper.Events.Player.Warped += OnPlayerWarped;
             helper.Events.GameLoop.DayStarted += OnDayStarted;
         }
 
+        //Apparently getting currentLocation can return null for non-main players when warping, so I decided on this instead
         private void OnDayStarted(object sender, DayStartedEventArgs e)
         {
             gameLocation = Game1.player.currentLocation;
         }
-
         private void OnPlayerWarped(object sender, WarpedEventArgs e)
         {
             gameLocation = e.NewLocation;
         }
 
+        //Triggers every 10 in-game minutes
         private void OnTimeChanged(object sender, TimeChangedEventArgs e)
         {
             //Stops if world isn't ready, then resets lists for next time interval
@@ -69,7 +79,7 @@ namespace PassiveFriendship
 
                             if (!isDatable && character.Value.Points < tenHeartPoints)
                             {
-                                character.Value.Points++;
+                                character.Value.Points += friendshipGainedPerInterval;
                             }
                             else if (isDatable)
                             {
@@ -81,7 +91,7 @@ namespace PassiveFriendship
                                     (character.Value.Status == FriendshipStatus.Dating && character.Value.Points < tenHeartPoints) ||
                                     (character.Value.Points < eightHeartPoints))
                                 {
-                                    character.Value.Points++;
+                                    character.Value.Points += friendshipGainedPerInterval;
                                 }
                             }
                             if (notifyInConsole)
@@ -130,5 +140,6 @@ namespace PassiveFriendship
     {
         public int FriendshipRadius { get; set; } = 2;
         public bool NotifyAboutFriendshipInConsole { get; set; } = false;
+        public int AmountOfFriendshipGainedPerTenMinutes { get; set; } = 1;
     }
 }
