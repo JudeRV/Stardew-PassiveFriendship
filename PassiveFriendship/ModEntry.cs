@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using GenericModConfigMenu;
+using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -63,28 +64,77 @@ namespace PassiveFriendship
             }
 
             //Event handler
+            helper.Events.GameLoop.GameLaunched += OnGameLaunched;
             helper.Events.GameLoop.TimeChanged += OnTimeChanged;
             helper.Events.Player.Warped += OnPlayerWarped;
             helper.Events.GameLoop.DayStarted += OnDayStarted;
         }
 
+        private void OnGameLaunched(object? sender, GameLaunchedEventArgs e)
+        {
+            var configMenu = Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
+            if (configMenu == null)
+            {
+                return;
+            }
+
+            configMenu.Register(
+                mod: ModManifest,
+                reset: () => Config = new ModConfig(),
+                save: () => Helper.WriteConfig(Config)
+                );
+
+            configMenu.AddNumberOption(
+                mod: ModManifest,
+                name: () => "Friendship Radius",
+                tooltip: () => "Friends are detected in a square centered on the player - this determines how many tiles this square will reach in one direction from the player",
+                getValue: () => Config.FriendshipRadius,
+                setValue: value => Config.FriendshipRadius = value,
+                min: 0
+                );
+
+            configMenu.AddNumberOption(
+                mod: ModManifest,
+                name: () => "Time Interval",
+                tooltip: () => "How many 10-minute increments should pass between additions of friendship. E.g. if set to 1, friendship will be detected every 10 in-game minutes (this might be different if you have a mod that changes how time passes!).",
+                getValue: () => Config.TimeIntervalLengthInTenMinuteIncrements,
+                setValue: value => Config.TimeIntervalLengthInTenMinuteIncrements = value,
+                min: 1
+                );
+
+            configMenu.AddNumberOption(
+                mod: ModManifest,
+                name: () => "Friendship per Interval",
+                tooltip: () => "How many points of friendship are added for each time interval. For reference, 1 in-game heart is equal to 250 friendship points.",
+                getValue: () => Config.AmountOfFriendshipGainedPerTimeInterval,
+                setValue: value => Config.AmountOfFriendshipGainedPerTimeInterval = value
+                );
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: () => "Log Friendship in Console",
+                tooltip: () => "When enabled, this will print a message in the SMAPI console everytime friendship is gained.",
+                getValue: () => Config.NotifyAboutFriendshipInConsole,
+                setValue: value => Config.NotifyAboutFriendshipInConsole = value
+                );
+        }
+
         //Apparently getting currentLocation can return null for non-main players when warping, so I decided on this instead
-        private void OnDayStarted(object sender, DayStartedEventArgs e)
+        private void OnDayStarted(object? sender, DayStartedEventArgs e)
         {
             gameLocation = Game1.player.currentLocation;
         }
-        private void OnPlayerWarped(object sender, WarpedEventArgs e)
+        private void OnPlayerWarped(object? sender, WarpedEventArgs e)
         {
             gameLocation = e.NewLocation;
         }
 
         //Triggers every 10 in-game minutes
-        private void OnTimeChanged(object sender, TimeChangedEventArgs e)
+        private void OnTimeChanged(object? sender, TimeChangedEventArgs e)
         {
             //Stops if world isn't ready, then resets lists for next time interval
             if (!Context.IsWorldReady) return;
             timeCounter--;
-            Monitor.Log(timeCounter.ToString(), LogLevel.Debug);
             disposition = Game1.content.Load<Dictionary<string, CharacterData>>("Data\\Characters");
             SetListsForNewTime();
             Vector2 playerLocation = Game1.player.Tile;
